@@ -4,6 +4,7 @@ import scipy as sc
 from prettyprint import pp
 import os
 import re
+from datetime import datetime as dt
 
 
 #index label in the dictionary
@@ -39,6 +40,7 @@ def tokenizeDoc(doc_address, min_len = 0, remove_numerics=True):
         return tokens
 
 
+
 def createDictionary(classes, tokens_pool):
     """
     this method will create a dictionary out of the tokens_pool it has been provided.
@@ -71,6 +73,8 @@ def createDictionary(classes, tokens_pool):
                     token_dict[token][cl] = 1
     return token_dict
 
+
+
 def createTokenPool(classes, paths):
     """
     this method will create a pool of tokens out of the list of paths to documents it will be provided
@@ -87,6 +91,8 @@ def createTokenPool(classes, paths):
             token_pool[cl].append(tokenizeDoc(path))
 
     return token_pool
+
+
 
 def saveDictToFile(tdict, filename):
     """
@@ -106,6 +112,8 @@ def saveDictToFile(tdict, filename):
             if cl in val:
                 row.append(cl + ':' + str(val[cl]))
         w.writerow(row)
+
+
 
 def readFileToDict(filename):
     """
@@ -127,6 +135,8 @@ def readFileToDict(filename):
         except:
             continue
     return tdict
+
+
 
 def train_test_split(ratio, classes, files):
     """
@@ -242,117 +252,6 @@ class NaiveBayes:
                 vec[self.tdict[token][idx_lbl], 0] += 1
         return vec
 
-class Rocchio:
-    """
-    This is an implementation of the Rocchio classifier.
-    In the training phase, this classifier will learn centroids for each class.
-    After the training phase, it can easily predict the class label for a given input vector.
-    By calculating the input vector's distance to each centroid, input vector's
-    class label will be the label of the class having minimum distance.
-
-    *Note: each taining set vector should be normlized to unit length, however even normalizing
-           input vectors doesn't indicate that centroid vectors will have unit length.
-           Nonetheless, until input vector and each training set vector are normlized, we shouldn't
-           have any problems.
-
-    lbl = argmax_{k} |\mu_{k} - v(d)|
-    """
-    def __init__(self, class_labels, tdict):
-        """
-        constructor will get a list of the class labels, a dictionary of terms (as created before).
-        Then, by calling the train function, probabilities will be learned from the training set.
-        class_labels: a list of class labels
-        tdict: a dictionary of terms, termIDs, and number of occurences of term in each class
-        """
-        self.k = len(class_labels)
-        self.centroids = np.zeros((len(tdict), self.k)) # centroid vector for each class
-        self.lbl_dict = dict(zip(class_labels, range(self.k)))
-        self.class_labels = class_labels
-        self.tdict = tdict
-        self.ctermcnt = np.zeros((self.k, 1))           # total number of terms in a class
-
-    def train(self, token_pool, tfidf_but_smoothing = True):
-        """
-        this method will find the centroids for each class
-        token_pool: a pool of tokens for each each document in each class. We could find the centroid for
-                    each class using only the dictionary provided; but the normalization is the problem.
-                    This way, each training set vector can be normalized to unit length.
-        tfidf_but_smoothing: if True, tfidf weighting will be used (ntn.ntn)
-                             if False, smoothing will be used
-        """
-        # First learn the prior probabilities
-
-        if len(token_pool) != len(self.class_labels):
-            print "error! number of classes don't match"
-            return
-
-        # now find the term frequency for each class
-        for term, data in self.tdict.items():
-            idx = data[idx_lbl]
-            for cl in self.lbl_dict.viewkeys():
-                if cl in data:
-                    self.ctermcnt[self.lbl_dict[cl], 0] += data[cl]
-
-        # now normalize each input vector and add it to its corresponding centroid vector
-        for cl in self.class_labels:
-            for doc in token_pool[cl]:
-                vec = self.__createNormalizedVectorRepresentation(doc, cl)
-                for i in range(len(self.tdict)):
-                    self.centroids[i, self.lbl_dict[cl]] += vec[i,0]
-
-            self.centroids[:, self.lbl_dict[cl]] /= len(token_pool[cl])
-
-    def predict(self, doc):
-        """
-        this method will predict the label for the input document using the Naive Bayes classification method
-
-        doc: input document for which its label is going to be predicted, this argument should be provided as a list of tokens
-
-        output: label of the document
-        """
-
-        doc_vec = self.__createNormalizedVectorRepresentation(doc, None)
-
-        distances = [0] * self.k
-        for i in range(self.k):
-            distances[i] = np.linalg.norm(doc_vec - self.centroids[:, i])
-
-        pp (distances)
-
-        return self.class_labels[distances.index(min(distances))]
-
-
-    def __createNormalizedVectorRepresentation(self, tokens_list, cl = None, tfidf = True):
-        """
-        this method will create a vector space representation of the list of tokens provided with unit length
-        self.tdict: dictionary against which the vector space representation will be produced
-        tokens_list: a list of tokens all of whom which may or may not belong to the dictionary provided
-        cl: the input vector's class, for calculating the document frequency term
-            in case it is None, term frequency should be calculated from the document itself
-        output: a vector as a numpy array of size (len(tdict), 1) for which every row shows the number of
-                times a token has appeared in a given document
-        """
-        vec = np.zeros((len(self.tdict), 1))
-        token_set = set(tokens_list)
-        for token in tokens_list:
-            if token in self.tdict:
-                vec[self.tdict[token][idx_lbl], 0] += 1
-
-        if tfidf:
-            if cl == None:
-                for term in token_set:
-                    if term in self.tdict:
-                        vec[self.tdict[term][idx_lbl], 0] *= np.log(len([t for t in tokens_list if t == term]) * 1.0 / len(tokens_list))
-            else:
-                for term in token_set:
-                    if cl in self.tdict:
-                        vec[self.tdict[term][idx_lbl], 0] *= np.log(self.ctermcnt[self.lbl_dict[cl], 0] * 1.0 / self.tdict[term][cl])
-
-
-        norm_vec = np.linalg.norm(vec)
-        vec = (vec / (norm_vec + 1e-14))
-        return vec
-
 
 def main():
 
@@ -380,30 +279,21 @@ def main():
 
     dumbBayes = NaiveBayes(class_titles, tdict)
     class_count = [len(train[cl]) for cl in class_titles]
-    dumbBayes.train(class_count, False)
 
-    print dumbBayes.cctermp
-
-    id = 1
-    lbl = dumbBayes.predict(tokenizeDoc(test[class_titles[id]][3]))
-    print lbl == class_titles[id]
-    print lbl
-    print class_titles[id]
-
-    print "Rocchio's turn"
-
-    rocchio = Rocchio(class_titles, tdict)
-
-    from datetime import datetime as dt
     start = dt.now()
-    rocchio.train(pool)
+    dumbBayes.train(class_count, False)
     end = dt.now()
 
-    print 'elapsed time for training rocchio'
+    print 'elapsed time for training the Naive Bayes'
     print end - start
-    print rocchio.centroids
 
-    lbl = rocchio.predict(tokenizeDoc(test[class_titles[id]][3]))
+    id = 1
+    start = dt.now()
+    lbl = dumbBayes.predict(tokenizeDoc(test[class_titles[id]][3]))
+    end = dt.now()
+
+    print 'elapsed time for testing Naive Bayes'
+    print end - start
     print lbl == class_titles[id]
 
 
