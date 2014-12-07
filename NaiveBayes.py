@@ -205,7 +205,7 @@ class NaiveBayes:
                     self.cctermp[idx, self.lbl_dict[cl]] += data[cl]
                     self.ctermcnt[self.lbl_dict[cl], 0] += data[cl]
 
-        print self.cctermp
+        # print self.cctermp
 
         if not tfidf_but_smoothing:
             for i in range(len(self.tdict)):
@@ -233,9 +233,25 @@ class NaiveBayes:
             log_class_conditional = np.log(self.cctermp[:,i] + 1e-14)
             class_score[i] = log_class_conditional.transpose().dot(doc_vec)[0] + np.log(self.priors[i,0])
 
-        pp (class_score)
+
         return self.class_labels[class_score.index(max(class_score))]
 
+
+
+    def predictPool(self, doc_collection):
+        """
+        this method will get a dictionary of collection of documents and predict their label.
+        doc_collection: a dictionary of collection of documents for which we want to predict their label
+
+        output: as output, a dictionary of collection of labels for each corresponding document will be returned
+        """
+        lbl_pool = {}
+        for cl in self.class_labels:
+            lbl_pool[cl] = []
+            for doc in doc_collection[cl]:
+                lbl_pool[cl].append(self.predict(doc))
+
+        return lbl_pool
 
     def __createVectorRepresentation(self, tokens_list):
         """
@@ -252,6 +268,47 @@ class NaiveBayes:
                 vec[self.tdict[token][idx_lbl], 0] += 1
         return vec
 
+
+def calculateMetrics(class_labels, lbl_pool):
+    """
+    this method will calculate the tp, tn, fp, fn metrics for each class
+    of documents from the pool labels provided
+        tp: number of documents in the class that are correctly labeled as belonging to class
+        tn: number of documents not in the class that are correctly labeled as not belonging to class
+        fp: number of documents not in the class that are incorrectly labeled as belonging to class
+        fn: number of documents in the class that are incorrectly labeled as not belonging to class
+
+    class_labels: labels of the classes
+    lbl_pool: a dictionary of collections of labels
+
+    output: a dictionary of dictionaries of metrics for each class
+    """
+    metrics = {}
+    for cl in class_labels:
+        metrics[cl] = {}
+        tp = 0
+        tn = 0
+        fp = 0
+        fn = 0
+        for lbl in lbl_pool[cl]:
+            if lbl == cl:
+                tp += 1
+            else:
+                fp += 1
+        for ncl in class_labels:
+            if ncl != cl:
+                for lbl in lbl_pool[ncl]:
+                    if lbl == cl:
+                        fn += 1
+                    else:
+                        tn += 1
+
+        metrics[cl]["tp"] = tp
+        metrics[cl]["tn"] = tn
+        metrics[cl]["fp"] = fp
+        metrics[cl]["fn"] = fn
+
+    return metrics
 
 def main():
 
@@ -296,6 +353,28 @@ def main():
     print end - start
     print lbl == class_titles[id]
 
+    test_pool = createTokenPool(class_titles, test)
+    start = dt.now()
+    test_lbl_pool = dumbBayes.predictPool(test_pool)
+    end = dt.now()
+
+    print 'elapsed time for testing a pool of documents'
+    print end - start
+
+    metrics = calculateMetrics(class_titles, test_lbl_pool)
+    total_F = 0
+    for cl in class_titles:
+        print cl
+        P = (metrics[cl]["tp"] * 1.0 / (metrics[cl]["tp"] + metrics[cl]["fp"]))
+        R = (metrics[cl]["tp"] * 1.0 / (metrics[cl]["tp"] + metrics[cl]["fn"]))
+        Acc = ((metrics[cl]["tp"] + metrics[cl]["tn"])* 1.0 / (metrics[cl]["tp"] + metrics[cl]["fp"] + metrics[cl]["fn"] + metrics[cl]["tn"]))
+        F_1 = 2 * R * P / (R + P)
+        total_F += F_1
+        print 'P = ', P
+        print 'R = ', R
+        print ' '
+
+    print 'macro-averaged F measure', (total_F / len(class_titles))
 
 
     # saveDictToFile(tdict, 'dictionary.csv')
