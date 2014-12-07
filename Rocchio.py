@@ -179,7 +179,8 @@ class Rocchio:
         tdict: a dictionary of terms, termIDs, and number of occurences of term in each class
         """
         self.k = len(class_labels)
-        self.centroids = np.zeros((len(tdict), self.k)) # centroid vector for each class
+        # self.centroids = [np.zeros((len(tdict), 1))]*self.k # centroid vector for each class
+        self.centroids = []
         self.lbl_dict = dict(zip(class_labels, range(self.k)))
         self.class_labels = class_labels
         self.tdict = tdict
@@ -188,13 +189,12 @@ class Rocchio:
     def train(self, token_pool, tfidf_but_smoothing = True):
         """
         this method will find the centroids for each class
-        token_pool: a pool of tokens for each each document in each class. We could find the centroid for
+        token_pool: a pool of tokens for each document in each class. We could find the centroid for
                     each class using only the dictionary provided; but the normalization is the problem.
                     This way, each training set vector can be normalized to unit length.
         tfidf_but_smoothing: if True, tfidf weighting will be used (ntn.ntn)
                              if False, smoothing will be used
         """
-        # First learn the prior probabilities
 
         if len(token_pool) != len(self.class_labels):
             print "error! number of classes don't match"
@@ -202,38 +202,53 @@ class Rocchio:
 
         # now find the term frequency for each class
         for term, data in self.tdict.items():
-            idx = data[idx_lbl]
-            for cl in self.lbl_dict.viewkeys():
+            for cl in self.lbl_dict:
                 if cl in data:
                     self.ctermcnt[self.lbl_dict[cl], 0] += data[cl]
 
         # now normalize each input vector and add it to its corresponding centroid vector
         for cl in self.class_labels:
+            self.centroids.append(np.zeros((len(self.tdict), 1)))
             for doc in token_pool[cl]:
                 vec = self.__createNormalizedVectorRepresentation(doc, cl)
-                for i in range(len(self.tdict)):
-                    self.centroids[i, self.lbl_dict[cl]] += vec[i,0]
+                self.centroids[self.lbl_dict[cl]] += vec
 
-            self.centroids[:, self.lbl_dict[cl]] /= len(token_pool[cl])
+            self.centroids[self.lbl_dict[cl]] /= len(token_pool[cl])
 
     def predict(self, doc):
         """
-        this method will predict the label for the input document using the Naive Bayes classification method
-
-        doc: input document for which its label is going to be predicted, this argument should be provided as a list of tokens
+        this method will predict the label for the input document using the Rochhio's classification method
+        doc: input document for which its label is going to be predicted, this argument should be provided as an array of tokens
 
         output: label of the document
         """
 
         doc_vec = self.__createNormalizedVectorRepresentation(doc, None)
 
-        distances = [0] * self.k
+        distances = []
         for i in range(self.k):
-            distances[i] = np.linalg.norm(doc_vec - self.centroids[:, i])
+            distances.append(np.linalg.norm(doc_vec - self.centroids[i]))
 
-        pp (distances)
+
+        # pp (distances)
 
         return self.class_labels[distances.index(min(distances))]
+
+
+    def predictPool(self, doc_collection):
+        """
+        this method will get a dictionary of collection of documents and predict their label.
+        doc_collection: a dictionary of collection of documents for which we want to predict their label
+
+        output: as output, a dictionary of collection of labels for each corresponding document will be returned
+        """
+        lbl_pool = {}
+        for cl in self.class_labels:
+            lbl_pool[cl] = []
+            for doc in doc_collection[cl]:
+                lbl_pool[cl].append(self.predict(doc))
+
+        return lbl_pool
 
 
     def __createNormalizedVectorRepresentation(self, tokens_list, cl = None, tfidf = True):
@@ -241,31 +256,67 @@ class Rocchio:
         this method will create a vector space representation of the list of tokens provided with unit length
         self.tdict: dictionary against which the vector space representation will be produced
         tokens_list: a list of tokens all of whom which may or may not belong to the dictionary provided
-        cl: the input vector's class, for calculating the document frequency term
-            in case it is None, term frequency should be calculated from the document itself
-        output: a vector as a numpy array of size (len(tdict), 1) for which every row shows the number of
-                times a token has appeared in a given document
+        cl: the input vector's class, in case it is None, term frequency will be calculated from the document vector itself
+        output: a tfidf vector of size len(tdict)*1 that is normalized to have a unit length
         """
         vec = np.zeros((len(self.tdict), 1))
-        token_set = set(tokens_list)
         for token in tokens_list:
             if token in self.tdict:
                 vec[self.tdict[token][idx_lbl], 0] += 1
 
+        token_set = set(tokens_list)
         if tfidf:
-            if cl == None:
+            if cl != None:
                 for term in token_set:
-                    if term in self.tdict:
-                        vec[self.tdict[term][idx_lbl], 0] *= np.log(len([t for t in tokens_list if t == term]) * 1.0 / len(tokens_list))
-            else:
-                for term in token_set:
-                    if cl in self.tdict:
+                    if cl in self.tdict[term]:
                         vec[self.tdict[term][idx_lbl], 0] *= np.log(self.ctermcnt[self.lbl_dict[cl], 0] * 1.0 / self.tdict[term][cl])
 
 
         norm_vec = np.linalg.norm(vec)
         vec = (vec / (norm_vec + 1e-14))
         return vec
+
+
+def calculateMetrics(class_labels, lbl_pool):
+    """
+    this method will calculate the tp, tn, fp, fn metrics for each class
+    of documents from the pool labels provided
+        tp: number of documents in the class that are correctly labeled as belonging to class
+        tn: number of documents not in the class that are correctly labeled as not belonging to class
+        fp: number of documents not in the class that are incorrectly labeled as belonging to class
+        fn: number of documents in the class that are incorrectly labeled as not belonging to class
+
+    class_labels: labels of the classes
+    lbl_pool: a dictionary of collections of labels
+
+    output: a dictionary of dictionaries of metrics for each class
+    """
+    metrics = {}
+    for cl in class_labels:
+        metrics[cl] = {}
+        tp = 0
+        tn = 0
+        fp = 0
+        fn = 0
+        for lbl in lbl_pool[cl]:
+            if lbl == cl:
+                tp += 1
+            else:
+                fp += 1
+        for ncl in class_labels:
+            if ncl != cl:
+                for lbl in lbl_pool[ncl]:
+                    if lbl == cl:
+                        fn += 1
+                    else:
+                        tn += 1
+
+        metrics[cl]["tp"] = tp
+        metrics[cl]["tn"] = tn
+        metrics[cl]["fp"] = fp
+        metrics[cl]["fn"] = fn
+
+    return metrics
 
 
 def main():
@@ -303,7 +354,9 @@ def main():
     print 'elapsed time for training rocchio'
     print end - start
 
-    id = 2
+    for c in rocchio.centroids:
+        print np.linalg.norm(c - rocchio.centroids[0])
+    id = 3
 
     start = dt.now()
     lbl = rocchio.predict(tokenizeDoc(test[class_titles[id]][3]))
@@ -313,6 +366,31 @@ def main():
     print end - start
 
     print lbl == class_titles[id]
+
+
+    test_pool = createTokenPool(class_titles, test)
+    start = dt.now()
+    test_lbl_pool = rocchio.predictPool(test_pool)
+    end = dt.now()
+
+    print 'elapsed time for testing a pool of documents'
+    print end - start
+
+
+    metrics = calculateMetrics(class_titles, test_lbl_pool)
+    total_F = 0
+    for cl in class_titles:
+        print cl
+        P = (metrics[cl]["tp"] * 1.0 / (metrics[cl]["tp"] + metrics[cl]["fp"]))
+        R = (metrics[cl]["tp"] * 1.0 / (metrics[cl]["tp"] + metrics[cl]["fn"]))
+        Acc = ((metrics[cl]["tp"] + metrics[cl]["tn"])* 1.0 / (metrics[cl]["tp"] + metrics[cl]["fp"] + metrics[cl]["fn"] + metrics[cl]["tn"]))
+        F_1 = 2 * R * P / (R + P)
+        total_F += F_1
+        print 'P = ', P
+        print 'R = ', R
+        print ' '
+
+    print 'macro-averaged F measure', (total_F / len(class_titles))
 
 
 
