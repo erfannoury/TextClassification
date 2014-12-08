@@ -148,5 +148,5 @@ def train_test_split(ratio, classes, files):
     for cl in classes:
         train_cnt = int(ratio * len(files[cl]))
         train_dict[cl] = files[cl][:train_cnt]
-        test_dict[cl] = files[cl][train_cnt+1:]
+        test_dict[cl] = files[cl][train_cnt:]
     return train_dict, test_dict
