@@ -26,8 +26,13 @@ class NaiveBayes:
         """
         constructor will get a list of the class labels, a dictionary of terms (as created before).
         Then, by calling the train function, probabilities will be learned from the training set.
-        class_labels: a list of class labels
-        tdict: a dictionary of terms, termIDs, and number of occurences of term in each class
+
+        Parameters
+        ----------
+        class_labels: list
+                      list of class labels
+        tdict: dictionary
+               a dictionary of terms and number of occurences of term in each class
         """
         self.k = len(class_labels)
         self.priors = np.zeros((self.k, 1))             #prior probabilities for each class
@@ -36,15 +41,25 @@ class NaiveBayes:
         self.lbl_dict = dict(zip(class_labels, range(self.k)))
         self.class_labels = class_labels
         self.tdict = tdict
+
     def train(self, class_counts, tfidf_but_smoothing = True):
         """
         this will learn the prior and class conditional probabilities for the set of documents
         for learning class prior probabilities, it will use the class_counts list
         for learning class conditional probabilities for each class, it will use the
         term dictionary provided
-        class_counts: number of documents in each class
-        tfidf_but_smoothing: if True, tfidf weighting will be used (ntn.ntn)
+
+        Parameters
+        ----------
+        class_counts: list
+                      number of documents in each class
+        tfidf_but_smoothing: boolean
+                             if True, tfidf weighting will be used (ntn.ntn)
                              if False, smoothing will be used
+
+        Returns
+        -------
+
         """
         # First learn the prior probabilities
 
@@ -78,9 +93,15 @@ class NaiveBayes:
         """
         this method will predict the label for the input document using the Naive Bayes classification method
 
-        doc: input document for which its label is going to be predicted, this argument should be provided as a list of tokens
+        Parameters
+        ----------
+        doc: list
+             input document for which its label is going to be predicted, this argument should be provided as a list of tokens
 
-        output: label of the document
+        Returns
+        -------
+        output: object
+                an element of the class_labels list
         """
 
         doc_vec = self.__createVectorRepresentation(doc)
@@ -94,13 +115,19 @@ class NaiveBayes:
         return self.class_labels[class_score.index(max(class_score))]
 
 
-
     def predictPool(self, doc_collection):
         """
         this method will get a dictionary of collection of documents and predict their label.
-        doc_collection: a dictionary of collection of documents for which we want to predict their label
 
-        output: as output, a dictionary of collection of labels for each corresponding document will be returned
+        Parameters
+        ----------
+        doc_collection: dictionary
+                        dictionary of collection of documents for which we want to predict their label
+
+        Returns
+        -------
+        lbl_pool: dictionary
+                  dictionary of collection of labels for each corresponding document will be returned
         """
         lbl_pool = {}
         for cl in self.class_labels:
@@ -113,11 +140,17 @@ class NaiveBayes:
     def __createVectorRepresentation(self, tokens_list):
         """
         this method will create a vector space representation of the list of tokens provided
-        tdict: dictionary against which the vector space representation will be produced
-        tokens_list: a list of tokens all of whom which may or may not belong to the dictionary provided
 
-        output: a vector as a numpy array of size (len(tdict), 1) for which every row shows the number of
-                times a token has appeared in a given document
+        Parameters
+        ----------
+        tokens_list: list
+                     list of tokens all of whom which may or may not belong to the dictionary provided
+
+        Returns
+        -------
+        vec: np.ndarray
+             vector as a numpy array of size (len(tdict), 1) for which every row shows the number of
+             times a token has appeared in a given document
         """
         vec = np.zeros((len(self.tdict), 1), dtype=np.int8)
         for token in tokens_list:
@@ -135,10 +168,17 @@ def calculateMetrics(class_labels, lbl_pool):
         fp: number of documents not in the class that are incorrectly labeled as belonging to class
         fn: number of documents in the class that are incorrectly labeled as not belonging to class
 
-    class_labels: labels of the classes
-    lbl_pool: a dictionary of collections of labels
+    Parameters
+    ----------
+    class_labels: dictionary
+                  labels of the classes
+    lbl_pool: dictionary
+              dictionary of lists of labels
 
-    output: a dictionary of dictionaries of metrics for each class
+    Returns
+    -------
+    metrics: dictionary
+             dictionary of dictionaries of metrics for each class
     """
     metrics = {}
     for cl in class_labels:
@@ -169,7 +209,7 @@ def calculateMetrics(class_labels, lbl_pool):
 
 def main():
 
-    root_path = 'E:/University Central/Modern Information Retrieval/Project/Project Phase 2/20_newsgroup/'
+    root_path = '20_newsgroup/'
     #top_view folders
     folders = [root_path + folder + '/' for folder in os.listdir(root_path)]
 
