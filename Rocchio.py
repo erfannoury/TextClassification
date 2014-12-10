@@ -31,8 +31,13 @@ class Rocchio:
         """
         constructor will get a list of the class labels, a dictionary of terms (as created before).
         Then, by calling the train function, probabilities will be learned from the training set.
-        class_labels: a list of class labels
-        tdict: a dictionary of terms, termIDs, and number of occurences of term in each class
+
+        Parameters
+        ----------
+        class_labels: list
+                      list of class labels
+        tdict: dictionary
+               dictionary of terms and number of occurences of term in each class
         """
         self.k = len(class_labels)
         # self.centroids = [np.zeros((len(tdict), 1))]*self.k # centroid vector for each class
@@ -42,13 +47,19 @@ class Rocchio:
         self.tdict = tdict
         self.ctermcnt = np.zeros((self.k, 1))           # total number of terms in a class
 
+
     def train(self, token_pool, tfidf_but_smoothing = True):
         """
         this method will find the centroids for each class
-        token_pool: a pool of tokens for each document in each class. We could find the centroid for
+
+        Parameters
+        ----------
+        token_pool: dictionary
+                    pool of tokens for each document in each class. We could find the centroid for
                     each class using only the dictionary provided; but the normalization is the problem.
                     This way, each training set vector can be normalized to unit length.
-        tfidf_but_smoothing: if True, tfidf weighting will be used (ntn.ntn)
+        tfidf_but_smoothing: boolean
+                             if True, tfidf weighting will be used (ntn.ntn)
                              if False, smoothing will be used
         """
 
@@ -71,12 +82,19 @@ class Rocchio:
 
             self.centroids[self.lbl_dict[cl]] /= len(token_pool[cl])
 
+
     def predict(self, doc):
         """
         this method will predict the label for the input document using the Rochhio's classification method
-        doc: input document for which its label is going to be predicted, this argument should be provided as an array of tokens
 
-        output: label of the document
+        Parameters
+        ----------
+        doc: list
+             input document for which its label is going to be predicted, this argument should be provided as an array of tokens
+
+        Returns
+        -------
+        output: an element of the class_labels list
         """
 
         doc_vec = self.__createNormalizedVectorRepresentation(doc, None)
@@ -94,9 +112,16 @@ class Rocchio:
     def predictPool(self, doc_collection):
         """
         this method will get a dictionary of collection of documents and predict their label.
-        doc_collection: a dictionary of collection of documents for which we want to predict their label
 
-        output: as output, a dictionary of collection of labels for each corresponding document will be returned
+        Parameters
+        ----------
+        doc_collection: dictionary
+                        dictionary of collection of documents for which we want to predict their label
+
+        Returns
+        -------
+        lbl_pool: dictionary
+                  dictionary of collection of labels for each corresponding document will be returned
         """
         lbl_pool = {}
         for cl in self.class_labels:
@@ -110,10 +135,18 @@ class Rocchio:
     def __createNormalizedVectorRepresentation(self, tokens_list, cl = None, tfidf = True):
         """
         this method will create a vector space representation of the list of tokens provided with unit length
-        self.tdict: dictionary against which the vector space representation will be produced
-        tokens_list: a list of tokens all of whom which may or may not belong to the dictionary provided
-        cl: the input vector's class, in case it is None, term frequency will be calculated from the document vector itself
-        output: a tfidf vector of size len(tdict)*1 that is normalized to have a unit length
+
+        Parameters
+        ----------
+        tokens_list: list
+                     list of tokens all of whom which may or may not belong to the dictionary provided
+        cl: object or `None`
+            the input vector's class, in case it is `None`, term frequency will be calculated from the document vector itself
+
+        Returns
+        -------
+        vec: np.ndarray
+             tfidf vector of size len(tdict)*1 that is normalized to have a unit length
         """
         vec = np.zeros((len(self.tdict), 1))
         for token in tokens_list:
@@ -142,10 +175,17 @@ def calculateMetrics(class_labels, lbl_pool):
         fp: number of documents not in the class that are incorrectly labeled as belonging to class
         fn: number of documents in the class that are incorrectly labeled as not belonging to class
 
-    class_labels: labels of the classes
-    lbl_pool: a dictionary of collections of labels
+    Parameters
+    ----------
+    class_labels: dictionary
+                  labels of the classes
+    lbl_pool: dictionary
+              dictionary of lists of labels
 
-    output: a dictionary of dictionaries of metrics for each class
+    Returns
+    -------
+    metrics: dictionary
+             dictionary of dictionaries of metrics for each class
     """
     metrics = {}
     for cl in class_labels:
@@ -177,7 +217,7 @@ def calculateMetrics(class_labels, lbl_pool):
 
 def main():
 
-    root_path = 'E:/University Central/Modern Information Retrieval/Project/Project Phase 2/20_newsgroup/'
+    root_path = '20_newsgroup/'
     #top_view folders
     folders = [root_path + folder + '/' for folder in os.listdir(root_path)]
 
