@@ -56,3 +56,6 @@ target/
 ### IPythonNotebook ###
 # Temporary data
 .ipynb_checkpoints/
+
+### Project Files ###
+dictionary.csv
