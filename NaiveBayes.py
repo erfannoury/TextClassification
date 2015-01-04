@@ -267,8 +267,9 @@ def main():
         Acc = ((metrics[cl]["tp"] + metrics[cl]["tn"])* 1.0 / (metrics[cl]["tp"] + metrics[cl]["fp"] + metrics[cl]["fn"] + metrics[cl]["tn"]))
         F_1 = 2 * R * P / (R + P)
         total_F += F_1
-        print 'P = ', P
-        print 'R = ', R
+        print 'precision = ', P
+        print 'recall = ', R
+        print 'accuracy = ', Acc
         print ' '
 
     print 'macro-averaged F measure', (total_F / len(class_titles))
